@@ -1,23 +1,12 @@
 import { NextResponse } from 'next/server';
-import clientPromise from '@/app/lib/mongodb'; // Adjusted path for clarity
-import { Review } from '@/app/types'; // Import your Review type
-
-type Params = {
-  bookId: string;
-};
+import clientPromise from '@/app/lib/mongodb';
 
 // GET /api/reviews/[bookId] - Return all reviews for a specific book
-export async function GET(
-  request: Request,
-  { params }: { params: Params }
-) {
-  const { bookId } = params;
+export async function GET(request: Request, context: { params: Promise<{ bookId: string }> }) {
+  const { bookId } = await context.params;
 
   if (!bookId) {
-    return NextResponse.json(
-      { error: 'Book ID is required' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Book ID is required' }, { status: 400 });
   }
 
   try {
@@ -26,16 +15,12 @@ export async function GET(
 
     // Find reviews where the 'bookId' field matches the ID from the URL
     const reviews = await db
-      .collection<Review>('reviews') // Assuming your collection is named 'reviews'
+      .collection('reviews')
       .find({ bookId: bookId })
       .toArray();
 
     return NextResponse.json(reviews);
   } catch (err) {
-    console.error('Error fetching reviews:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch reviews' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch reviews' }, { status: 500 });
   }
 }

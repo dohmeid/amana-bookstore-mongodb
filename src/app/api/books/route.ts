@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-// Import the connection helper
-import clientPromise from './../../lib/mongodb';
+import clientPromise from '@/app/lib/mongodb';
 
 // GET /api/books - Return all books
 export async function GET() {
   try {
     const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB_NAME || 'bookStoreData'); // Use env var for DB name
+    const db = client.db(process.env.MONGODB_DB_NAME || 'bookStoreData');
 
     const books = await db
       .collection('books')
@@ -15,11 +14,7 @@ export async function GET() {
 
     return NextResponse.json(books);
   } catch (err) {
-    console.error('Error fetching books:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch books' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch books' }, { status: 500 });
   }
 }
 
@@ -34,20 +29,20 @@ export async function GET() {
 
 // Example future database integration:
 // import { db } from '@/lib/database';
-// 
+//
 // export async function GET(request: Request) {
 //   const { searchParams } = new URL(request.url);
 //   const page = parseInt(searchParams.get('page') || '1');
 //   const limit = parseInt(searchParams.get('limit') || '10');
 //   const genre = searchParams.get('genre');
-//   
+//
 //   try {
 //     const books = await db.books.findMany({
 //       where: genre ? { genre: { contains: genre } } : {},
 //       skip: (page - 1) * limit,
 //       take: limit,
 //     });
-//     
+//
 //     return NextResponse.json(books);
 //   } catch (error) {
 //     return NextResponse.json(
