@@ -4,8 +4,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { books } from '../../data/books';
-import { reviews } from '../../data/reviews';
 import { Book, CartItem, Review } from '../../types';
 
 export default function BookDetailPage() {
@@ -20,18 +18,41 @@ export default function BookDetailPage() {
   const { id } = params;
 
   useEffect(() => {
-    if (id) {
-      const foundBook = books.find((b) => b.id === id);
-      if (foundBook) {
-        setBook(foundBook);
-        // Get reviews for this book
-        const bookReviewsData = reviews.filter((review) => review.bookId === id);
-        setBookReviews(bookReviewsData);
-      } else {
-        setError('Book not found.');
-      }
+    if (!id || typeof id !== 'string') {
       setIsLoading(false);
+      return;
     }
+
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+
+        // 1. Fetch the main book data dynamically
+        const bookRes = await fetch(`/api/books/${id}`);
+        if (!bookRes.ok) {
+          throw new Error('Book not found.');
+        }
+        const foundBook: Book = await bookRes.json();
+        setBook(foundBook);
+
+        //2. Fetch reviews from the new API
+        const reviewsRes = await fetch(`/api/reviews/${id}`);
+          if (!reviewsRes.ok) {
+            setBookReviews([]);
+            throw new Error('Failed to fetch reviews');
+          }
+          const reviewsData: Review[] = await reviewsRes.json();
+          setBookReviews(reviewsData);
+        
+      } catch (err: any) {
+        setError(err.message);
+      }
+      finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchData();
   }, [id]);
 
   const handleAddToCart = () => {
@@ -68,12 +89,12 @@ export default function BookDetailPage() {
     // Redirect to the cart page after adding
     router.push('/cart');
   };
-  
+
   const renderStars = (rating: number) => {
     const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
-    
+
     for (let i = 1; i <= 5; i++) {
       if (i <= fullStars) {
         // Full star
@@ -110,10 +131,10 @@ export default function BookDetailPage() {
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   };
 
@@ -149,7 +170,7 @@ export default function BookDetailPage() {
         <div className="flex flex-col justify-center">
           <h1 className="text-4xl font-extrabold text-gray-800 mb-2">{book.title}</h1>
           <p className="text-xl text-gray-600 mb-4">by {book.author}</p>
-          
+
           <div className="flex items-center mb-4">
             {renderStars(book.rating)}
             <span className="text-md text-gray-500 ml-2">({book.reviewCount} reviews)</span>
@@ -179,7 +200,7 @@ export default function BookDetailPage() {
             />
           </div>
 
-          <button 
+          <button
             onClick={handleAddToCart}
             className="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600 transition-colors duration-300 text-lg font-semibold cursor-pointer"
           >
@@ -195,7 +216,7 @@ export default function BookDetailPage() {
       {/* Reviews Section */}
       <div className="mt-12">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Customer Reviews</h2>
-        
+
         {bookReviews.length > 0 ? (
           <div className="space-y-6">
             {bookReviews.map((review) => (
@@ -217,10 +238,10 @@ export default function BookDetailPage() {
                     )}
                   </div>
                 </div>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">{review.title}</h3>
                 <p className="text-gray-700 mb-3 leading-relaxed">{review.comment}</p>
-                
+
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">by {review.author}</span>
                 </div>

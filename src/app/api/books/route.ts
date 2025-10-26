@@ -1,4 +1,3 @@
-// src/app/api/books/route.ts
 import { NextResponse } from 'next/server';
 // Import the connection helper
 import clientPromise from './../../lib/mongodb';
