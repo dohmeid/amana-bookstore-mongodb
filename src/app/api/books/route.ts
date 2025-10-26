@@ -1,10 +1,19 @@
 // src/app/api/books/route.ts
 import { NextResponse } from 'next/server';
-import { books } from '../../data/books';
+// Import the connection helper
+import clientPromise from './../../lib/mongodb';
 
 // GET /api/books - Return all books
 export async function GET() {
   try {
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB_NAME || 'bookStoreData'); // Use env var for DB name
+
+    const books = await db
+      .collection('books')
+      .find({})
+      .toArray();
+
     return NextResponse.json(books);
   } catch (err) {
     console.error('Error fetching books:', err);

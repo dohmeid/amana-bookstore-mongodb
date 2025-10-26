@@ -1,11 +1,44 @@
 // src/app/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState ,useEffect} from 'react';
 import BookGrid from './components/BookGrid';
-import { books } from './data/books';
+import { Book } from './types';
+//import { books } from './data/books';
 
 export default function HomePage() {
+
+ const [books, setBooks] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch books from our API endpoint
+    const fetchBooks = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch('/api/books');
+        if (!response.ok) {
+          throw new Error('Failed to fetch books');
+        }
+        const data = await response.json();
+        setBooks(data);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+        fetchBooks();
+  }, []); // Empty dependency array means this runs once on mount
+
+
+
   // Simple cart handler for demo purposes
   const handleAddToCart = (bookId: string) => {
     console.log(`Added book ${bookId} to cart`);
@@ -23,7 +56,10 @@ export default function HomePage() {
       </section>
 
       {/* Book Grid */}
-      <BookGrid books={books} onAddToCart={handleAddToCart} />
-    </div>
+ {isLoading && <div className="text-center py-10">Loading books...</div>}
+      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
+      {!isLoading && !error && (
+        <BookGrid books={books} onAddToCart={handleAddToCart} />
+      )}    </div>
   );
 }
