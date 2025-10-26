@@ -1,4 +1,3 @@
-// src/app/api/cart/route.ts
 import { NextResponse } from 'next/server';
 
 // GET /api/cart - Get cart items
