@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/app/lib/mongodb';
-import { Book } from '@/app/types';
 
 const DB_NAME = process.env.MONGODB_DB_NAME || 'bookStoreData';
 const COLLECTION_NAME = 'books';
@@ -25,11 +24,11 @@ export async function GET() {
 // Create a new book
 export async function POST(request: Request) {
   try {
-    const body = await request.json(); // Assuming the body is the book data without the frontend 'id'
+    const body = await request.json();
 
-    if (!body.title || !body.author || !body.price) {
+    if (!body.title || !body.author || !body.price || !body.id) {
       return NextResponse.json(
-        { error: 'Missing required fields: title, author, and price.' },
+        { error: 'Missing required fields: id, title, author, and price.' },
         { status: 400 }
       );
     }
@@ -37,15 +36,19 @@ export async function POST(request: Request) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
-    // Insert the new book into the 'books' collection
-    const result = await db.collection<Book>(COLLECTION_NAME).insertOne(body);
+    const result = await db.collection(COLLECTION_NAME).insertOne(body);
 
     if (!result.acknowledged) {
       throw new Error("MongoDB insert operation failed.");
     }
 
+    const insertedBook = {
+      ...body,
+      _id: result.insertedId,
+    };
+
     return NextResponse.json(
-      { message: 'Book created successfully', book: { ...body } },
+      { message: 'Book created successfully', book: insertedBook },
       { status: 201 }
     );
   } catch (err) {
