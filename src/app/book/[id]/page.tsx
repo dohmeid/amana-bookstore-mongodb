@@ -1,14 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { Book, Review } from '@/app/types';
 import StarRating from '@/app/components/StarRating';
 import { getAnonymousUserId } from '@/app/lib/cartHelper';
 
+interface BookPageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
 
-export default function BookPage({ params }: any) {
 
-  const { id } = params;
+export default function BookPage({ params }: BookPageProps) {
+
+  const { id } = use(params);
   const [book, setBook] = useState<Book | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
