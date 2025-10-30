@@ -1,4 +1,3 @@
-// src/app/components/Pagination.tsx
 'use client';
 
 import React from 'react';
@@ -137,9 +136,8 @@ const Pagination: React.FC<PaginationProps> = ({
         <select
           value={itemsPerPage}
           onChange={(e) => {
-            // Reset to page 1 when changing items per page
-            onPageChange(1);
-            // The parent component should handle the itemsPerPage change
+            const newSize = Number(e.target.value);
+            onItemsPerPageChange?.(newSize);
           }}
           className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >

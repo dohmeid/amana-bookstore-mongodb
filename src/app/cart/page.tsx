@@ -2,109 +2,117 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CartItem from '../components/CartItem';
-import { Book, CartItem as CartItemType } from '../types';
-
-// Utility function to fetch a single book
-async function fetchBookById(bookId: string): Promise<Book | null> {
-  try {
-    const response = await fetch(`/api/books/${bookId}`);
-    if (!response.ok) {
-      console.error(`Failed to fetch book ${bookId}:`, response.status);
-      return null;
-    }
-    return response.json();
-  } catch (e) {
-    console.error(`Error fetching book ${bookId}:`, e);
-    return null;
-  }
-}
+import { CartItemWithBook } from '../types'; // Use the joined type
+import { getAnonymousUserId } from '../lib/cartHelper';
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<{ book: Book; quantity: number }[]>([]);
+  const [cartItems, setCartItems] = useState<CartItemWithBook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadCart = async () => {
-      setIsLoading(true);
-      const storedCart = localStorage.getItem('cart');
+  const loadCart = async () => {
+    setIsLoading(true);
+    const userId = getAnonymousUserId();
 
-      if (storedCart) {
-        try {
-          const cart: CartItemType[] = JSON.parse(storedCart);
-
-          // Use Promise.all to fetch details for all books in the cart concurrently
-          const bookDetailPromises = cart.map(item => fetchBookById(item.bookId));
-          const bookDetails = await Promise.all(bookDetailPromises);
-
-          const itemsWithBooks = cart
-            .map((item, index) => {
-              const book = bookDetails[index];
-              return book ? { book, quantity: item.quantity } : null;
-            })
-            .filter((item): item is { book: Book; quantity: number } => item !== null);
-
-          setCartItems(itemsWithBooks);
-        } catch (error) {
-          console.error('Failed to process cart or fetch book details', error);
-          setCartItems([]);
-        }
+    try {
+      const response = await fetch(`/api/cart?userId=${userId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch cart');
       }
-      setIsLoading(false);
-    };
+      const items: CartItemWithBook[] = await response.json();
 
+      setCartItems(items);
+
+    } catch (error) {
+      console.error('Failed to load cart:', error);
+      setCartItems([]);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
     loadCart();
   }, []);
 
-  const updateQuantity = (bookId: string, newQuantity: number) => {
+  const updateQuantity = async (bookId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
 
-    // Update local state
-    const updatedItems = cartItems.map(item =>
-      item.book.id === bookId ? { ...item, quantity: newQuantity } : item
-    );
-    setCartItems(updatedItems);
+    const userId = getAnonymousUserId();
 
-    // Update localStorage
-    const cartForStorage = updatedItems.map(item => ({
-      id: `${item.book.id}-${Date.now()}`,
-      bookId: item.book.id,
-      quantity: item.quantity,
-      addedAt: new Date().toISOString()
-    }));
-    localStorage.setItem('cart', JSON.stringify(cartForStorage));
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookId: bookId,
+          quantity: newQuantity,
+          userId: userId,
+        }),
+      });
 
-    // Notify navbar
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
+      if (!response.ok) {
+        throw new Error('Failed to update quantity');
+      }
+
+      // Update local state
+      const updatedItems = cartItems.map(item =>
+        item.book.id === bookId ? { ...item, quantity: newQuantity } : item
+      );
+      setCartItems(updatedItems);
+
+      // Notify navbar
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    }
   };
 
-  const removeItem = (bookId: string) => {
-    // Update local state
-    const updatedItems = cartItems.filter(item => item.book.id !== bookId);
-    setCartItems(updatedItems);
+  const removeItem = async (bookId: string) => {
+    const userId = getAnonymousUserId();
 
-    // Update localStorage
-    const cartForStorage = updatedItems.map(item => ({
-      id: `${item.book.id}-${Date.now()}`,
-      bookId: item.book.id,
-      quantity: item.quantity,
-      addedAt: new Date().toISOString()
-    }));
-    localStorage.setItem('cart', JSON.stringify(cartForStorage));
+    try {
+      const response = await fetch(`/api/cart?userId=${userId}&bookId=${bookId}`, {
+        method: 'DELETE',
+      });
 
-    // Notify navbar
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
+      if (!response.ok) {
+        throw new Error('Failed to remove item');
+      }
+
+      // Update local state
+      const updatedItems = cartItems.filter(item => item.book.id !== bookId);
+      setCartItems(updatedItems);
+
+      // Notify navbar
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
+
+    } catch (error) {
+      console.error('Error removing item:', error);
+    }
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-    localStorage.removeItem('cart');
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
+  const clearCart = async () => {
+    const userId = getAnonymousUserId();
+    try {
+      const response = await fetch(`/api/cart?userId=${userId}&clear=true`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear cart');
+      }
+
+      setCartItems([]);
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
+
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+    }
   };
 
   const totalPrice = cartItems.reduce((total, item) => total + (item.book.price * item.quantity), 0);
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-10">Loading Cart...</div>;
   }
 
   return (
