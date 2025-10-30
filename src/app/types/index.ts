@@ -1,6 +1,7 @@
-// src/app/types/index.ts
+import { ObjectId } from 'mongodb';
 
 export interface Book {
+  _id: ObjectId; // MongoDB primary key
   id: string;
   title: string;
   author: string;
@@ -20,14 +21,8 @@ export interface Book {
   featured: boolean;
 }
 
-export interface CartItem {
-  id: string;
-  bookId: string;
-  quantity: number;
-  addedAt: string;
-}
-
 export interface Review {
+  _id: ObjectId;
   id: string;
   bookId: string;
   author: string;
@@ -36,4 +31,21 @@ export interface Review {
   comment: string;
   timestamp: string;
   verified: boolean;
+}
+
+export interface CartItem {
+  _id: ObjectId;
+  userId: string; // To associate cart with a user/session
+  bookId: string;
+  quantity: number;
+  addedAt: string;
+}
+
+// Type for cart items returned from API (joined with book details)
+export interface CartItemWithBook {
+  book: Book;
+  quantity: number;
+  userId: string;
+  bookId: string;
+  _id: ObjectId;
 }
