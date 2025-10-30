@@ -41,8 +41,9 @@ export default function BookPage({ params }: BookPageProps) {
           const reviewsData = await reviewsRes.json();
           setReviews(reviewsData);
         }
-      } catch (err: any) {
-        setError(err.message || 'An unexpected error occurred.');
+      } catch (err) {
+        const error = err as Error;
+        setError(error.message || 'An unexpected error occurred.');
       } finally {
         setIsLoading(false);
       }
