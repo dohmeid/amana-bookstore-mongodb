@@ -26,11 +26,7 @@ export async function GET(
       .find({ bookId: bookId })
       .toArray();
 
-    const formattedReviews = reviews.map((review) => ({
-      ...review,
-      id: review._id.toString(),
-    }));
-    return NextResponse.json(formattedReviews);
+    return NextResponse.json(reviews);
   } catch (err) {
     console.error('Error fetching reviews:', err);
     return NextResponse.json({ error: 'Failed to fetch reviews' }, { status: 500 });

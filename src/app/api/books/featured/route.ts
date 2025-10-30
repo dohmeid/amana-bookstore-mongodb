@@ -9,15 +9,11 @@ export async function GET() {
   try {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
-    
+
+    // Find books where featured is true
     const books = await db.collection(COLLECTION_NAME).find({ featured: true }).toArray();
 
-    const formattedBooks = books.map(book => ({
-      ...book,
-      id: book._id.toString(),
-    }));
-
-    return NextResponse.json(formattedBooks);
+    return NextResponse.json(books);
   } catch (err) {
     return NextResponse.json({ error: 'Failed to fetch featured books' }, { status: 500 });
   }
