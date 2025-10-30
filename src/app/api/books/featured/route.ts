@@ -14,7 +14,7 @@ export async function GET() {
     const books = await db.collection(COLLECTION_NAME).find({ featured: true }).toArray();
 
     return NextResponse.json(books);
-  } catch (err) {
+  } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch featured books' }, { status: 500 });
   }
 }

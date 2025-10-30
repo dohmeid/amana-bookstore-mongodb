@@ -5,13 +5,9 @@ import { Book, Review } from '@/app/types';
 import StarRating from '@/app/components/StarRating';
 import { getAnonymousUserId } from '@/app/lib/cartHelper';
 
-interface BookPageProps {
-  params: {
-    id: string;
-  };
-}
 
-export default function BookPage({ params }: BookPageProps) {
+export default function BookPage({ params }: any) {
+
   const { id } = params;
   const [book, setBook] = useState<Book | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
