@@ -21,8 +21,9 @@ export default function HomePage() {
         }
         const data = await response.json();
         setBooks(data);
-      } catch (err: any) {
-        setError(err.message || 'An unexpected error occurred.');
+      } catch (err) {
+        const error = err as Error;
+        setError(error.message || 'An unexpected error occurred.');
       } finally {
         setIsLoading(false);
       }
