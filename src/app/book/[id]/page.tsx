@@ -1,217 +1,141 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import StarRating from '../../components/StarRating';
-import { Book, CartItem, Review } from '../../types';
 
-export default function BookDetailPage() {
+import { useState, useEffect } from 'react';
+import { Book, Review } from '@/app/types';
+import StarRating from '@/app/components/StarRating';
+import { getAnonymousUserId } from '@/app/lib/cartHelper';
+
+interface BookPageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function BookPage({ params }: BookPageProps) {
+  const { id } = params;
   const [book, setBook] = useState<Book | null>(null);
-  const [bookReviews, setBookReviews] = useState<Review[]>([]);
-  const [quantity, setQuantity] = useState(1);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const params = useParams();
-  const router = useRouter();
-  const { id } = params;
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    if (!id) {
-      return;
-    }
+    if (!id) return;
 
-    const fetchBookDetails = async () => {
-
+    const fetchData = async () => {
       setIsLoading(true);
       setError(null);
-
       try {
-        const response = await fetch(`/api/books/${id}`);
-        if (!response.ok) {
-          throw new Error('Book not found.');
+        // Fetch book details
+        const bookRes = await fetch(`/api/books/${id}`);
+        if (!bookRes.ok) {
+          throw new Error(`Failed to fetch book: ${bookRes.statusText}`);
         }
-        const foundBook: Book = await response.json();
-        setBook(foundBook);
+        const bookData = await bookRes.json();
+        setBook(bookData);
 
-        //2. Fetch reviews from the new API
+        // Fetch reviews
         const reviewsRes = await fetch(`/api/reviews/${id}`);
-        if (!reviewsRes.ok) {
-          setBookReviews([]);
-          throw new Error('Failed to fetch reviews');
+        if (reviewsRes.ok) {
+          const reviewsData = await reviewsRes.json();
+          setReviews(reviewsData);
         }
-        const reviewsData: Review[] = await reviewsRes.json();
-        setBookReviews(reviewsData);
-
       } catch (err: any) {
-        setError(err.message);
-      }
-      finally {
+        setError(err.message || 'An unexpected error occurred.');
+      } finally {
         setIsLoading(false);
       }
-    }
-
-    fetchBookDetails();
-  }, [id]);
-
-  const handleAddToCart = () => {
-    if (!book) return;
-
-    const cartItem: CartItem = {
-      id: `${book.id}-${Date.now()}`,
-      bookId: book.id,
-      quantity: quantity,
-      addedAt: new Date().toISOString(),
     };
 
-    // Retrieve existing cart from localStorage
-    const storedCart = localStorage.getItem('cart');
-    const cart: CartItem[] = storedCart ? JSON.parse(storedCart) : [];
+    fetchData();
+  }, [id]);
 
-    // Check if the book is already in the cart
-    const existingItemIndex = cart.findIndex((item) => item.bookId === book.id);
+  const handleAddToCart = async () => {
+    if (!book || !book.inStock || isAddingToCart) return;
 
-    if (existingItemIndex > -1) {
-      // Update quantity if item already exists
-      cart[existingItemIndex].quantity += quantity;
-    } else {
-      // Add new item to cart
-      cart.push(cartItem);
+    setIsAddingToCart(true);
+    const userId = getAnonymousUserId();
+
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookId: book.id, quantity: 1, userId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add item to cart');
+      }
+
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    } finally {
+      setIsAddingToCart(false);
     }
-
-    // Save updated cart to localStorage
-    localStorage.setItem('cart', JSON.stringify(cart));
-
-    // Dispatch a custom event to notify the Navbar
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
-
-    // Redirect to the cart page after adding
-    router.push('/cart');
-  };
-
-  const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading...</div>;
+    return <div className="text-center py-20">Loading book details...</div>;
   }
 
   if (error) {
-    return (
-      <div className="text-center py-10">
-        <h1 className="text-2xl font-bold text-red-500">{error}</h1>
-        <Link href="/" className="text-blue-500 hover:underline mt-4 inline-block cursor-pointer">
-          Back to Home
-        </Link>
-      </div>
-    );
+    return <div className="text-center py-20 text-red-500">Error: {error}</div>;
   }
-
   if (!book) {
-    return null; // Should be handled by error state
+    return <div className="text-center py-20">Book not found.</div>;
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Book Image */}
-        <div className="relative h-96 md:h-[600px] w-full shadow-lg rounded-lg overflow-hidden bg-gray-200 flex items-center justify-center">
-          {/* Book Icon Placeholder */}
-          <div className="text-8xl text-gray-400">📚</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-1">
+          <div className="bg-gray-200 h-96 w-full rounded-lg flex items-center justify-center text-6xl text-gray-400">
+            📚
+          </div>
         </div>
-
-        {/* Book Details */}
-        <div className="flex flex-col justify-center">
-          <h1 className="text-4xl font-extrabold text-gray-800 mb-2">{book.title}</h1>
-          <p className="text-xl text-gray-600 mb-4">by {book.author}</p>
-
-          <div className="flex items-center mb-4">
+        <div className="md:col-span-2">
+          <h1 className="text-4xl font-bold text-gray-900">{book.title}</h1>
+          <p className="text-xl text-gray-600 mt-2">by {book.author}</p>
+          <div className="flex items-center mt-4 gap-2">
             <StarRating rating={book.rating} />
-            <span className="text-md text-gray-500 ml-2">({book.reviewCount} reviews)</span>
+            <span className="text-gray-600">({book.reviewCount} reviews)</span>
           </div>
-
-          <p className="text-gray-700 mb-6 leading-relaxed">{book.description}</p>
-
-          <div className="mb-4">
-            {book.genre.map((g) => (
-              <span key={g} className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2">
-                {g}
-              </span>
-            ))}
+          <p className="text-3xl font-bold text-gray-900 mt-6">${book.price.toFixed(2)}</p>
+          <p className="text-gray-700 mt-4">{book.description}</p>
+          <div className="mt-6">
+            <button
+              onClick={handleAddToCart}
+              disabled={!book.inStock || isAddingToCart}
+              className="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isAddingToCart ? 'Adding...' : 'Add to Cart'}
+            </button>
+            {showSuccess && <span className="ml-4 text-green-600 font-semibold">Added to cart!</span>}
           </div>
-
-          <div className="text-3xl font-bold text-blue-600 mb-6">${book.price.toFixed(2)}</div>
-
-          <div className="flex items-center space-x-4 mb-6">
-            <label htmlFor="quantity" className="font-semibold">Quantity:</label>
-            <input
-              type="number"
-              id="quantity"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <button
-            onClick={handleAddToCart}
-            className="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600 transition-colors duration-300 text-lg font-semibold cursor-pointer"
-          >
-            Add to Cart
-          </button>
-
-          <Link href="/" className="text-blue-500 hover:underline mt-6 text-center cursor-pointer">
-            &larr; Back to Home
-          </Link>
         </div>
       </div>
 
-      {/* Reviews Section */}
       <div className="mt-12">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Customer Reviews</h2>
-
-        {bookReviews.length > 0 ? (
-          <div className="space-y-6">
-            {bookReviews.map((review) => (
-              <div key={review.id} className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center">
-                      <StarRating rating={review.rating} />
-                    </div>
-                    <span className="text-sm text-gray-500">•</span>
-                    <span className="text-sm text-gray-600">{formatDate(review.timestamp)}</span>
-                    {review.verified && (
-                      <>
-                        <span className="text-sm text-gray-500">•</span>
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                          Verified Purchase
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">{review.title}</h3>
-                <p className="text-gray-700 mb-3 leading-relaxed">{review.comment}</p>
-
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Reviews</h2>
+        {reviews.length > 0 ? (
+          <div className="space-y-4">
+            {reviews.map((review) => (
+              <div key={review.id} className="bg-white p-4 rounded-lg shadow-sm border">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">by {review.author}</span>
+                  <h3 className="font-bold text-lg">{review.title}</h3>
+                  <StarRating rating={review.rating} />
                 </div>
+                <p className="text-gray-600 text-sm">by {review.author} on {new Date(review.timestamp).toLocaleDateString()}</p>
+                <p className="mt-2 text-gray-700">{review.comment}</p>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <p className="text-gray-600">No reviews yet. Be the first to review this book!</p>
-          </div>
+          <p>No reviews yet.</p>
         )}
       </div>
     </div>

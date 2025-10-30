@@ -1,6 +1,4 @@
-// src/app/components/BookGrid.tsx
 'use client';
-
 import React, { useState, useMemo } from 'react';
 import { Book } from '../types';
 import BookCard from './BookCard';
@@ -17,7 +15,7 @@ const BookGrid: React.FC<BookGridProps> = ({ books, onAddToCart }) => {
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [sortBy, setSortBy] = useState('title');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1); // This will now be for the list view
   const [itemsPerPage, setItemsPerPage] = useState(8);
   const [featuredCarouselIndex, setFeaturedCarouselIndex] = useState(0);
 
@@ -123,7 +121,7 @@ const BookGrid: React.FC<BookGridProps> = ({ books, onAddToCart }) => {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
-
+  
   // Handle items per page change
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
@@ -295,6 +293,7 @@ const BookGrid: React.FC<BookGridProps> = ({ books, onAddToCart }) => {
               totalPages={totalPages}
               onPageChange={handlePageChange}
               itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
               totalItems={filteredAndSortedBooks.length}
             />
           </>

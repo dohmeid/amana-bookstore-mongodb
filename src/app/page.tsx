@@ -1,16 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
 import BookGrid from './components/BookGrid';
-import Pagination from './components/Pagination';
-import { Book, CartItem } from './types';
+import { Book } from './types';
+import { getAnonymousUserId } from './lib/cartHelper';
 
 export default function HomePage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const booksPerPage = 12;
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -33,71 +30,61 @@ export default function HomePage() {
     fetchBooks();
   }, []);
 
-
-  const indexOfLastBook = currentPage * booksPerPage;
-  const indexOfFirstBook = indexOfLastBook - booksPerPage;
-  const currentBooks = books.slice(indexOfFirstBook, indexOfLastBook);
-  const totalPages = Math.ceil(books.length / booksPerPage);
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-
-  const handleAddToCart = (bookId: string) => {
+  const handleAddToCart = async (bookId: string) => {
     const bookToAdd = books.find(b => b.id === bookId);
     if (!bookToAdd) return;
 
-    const cartItem: CartItem = {
-      id: `${bookId}-${Date.now()}`,
-      bookId: bookId,
-      quantity: 1, // Default quantity
-      addedAt: new Date().toISOString(),
-    };
+    const userId = getAnonymousUserId();
 
-    // Retrieve and update existing cart from localStorage (keep for now, as cart API is a placeholder)
-    const storedCart = localStorage.getItem('cart');
-    const cart: CartItem[] = storedCart ? JSON.parse(storedCart) : [];
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookId, quantity: 1, userId }),
+      });
 
-    const existingItemIndex = cart.findIndex((item) => item.bookId === bookId);
-
-    if (existingItemIndex > -1) {
-      cart[existingItemIndex].quantity += 1;
-    } else {
-      cart.push(cartItem);
+      if (!response.ok) {
+        throw new Error('Failed to add item to cart');
+      }
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
+    } catch (error) {
+      console.error("Add to cart failed:", error);
     }
-
-    localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new CustomEvent('cartUpdated'));
   };
 
   if (isLoading) {
-    return <div className="text-center py-10">Loading books...</div>;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20 text-gray-600">Loading books...</div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-center py-10 text-red-500">Error: {error}</div>;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-20 text-red-500">Error: {error}</div>
+      </div>
+    );
   }
-
-  if (books.length === 0) {
-    return <div className="text-center py-10 text-gray-600">No books found in the database.</div>;
-  }
-
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Welcome Section */}
-      <section className="text-center bg-blue-100 p-8 rounded-lg mb-12 shadow-md">
-        <h1 className="text-4xl font-extrabold text-gray-800 mb-2">Welcome to the Amana Bookstore!</h1>
-        <p className="text-lg text-gray-600">
-          Your one-stop shop for the best books. Discover new worlds and adventures.
+      <section className="text-center bg-gradient-to-r from-blue-600 to-blue-800 text-white p-10 rounded-lg mb-12 shadow-lg">
+        <h1 className="text-4xl font-extrabold mb-3">
+          Welcome to the BookStore
+        </h1>
+        <p className="text-lg text-blue-100 max-w-2xl mx-auto">
+          Your one-stop shop for the best books. Discover new worlds, expand your knowledge, and find your next great read.
         </p>
       </section>
 
       {/* Book Grid */}
-      {isLoading && <div className="text-center py-10">Loading books...</div>}
-      {error && <div className="text-center py-10 text-red-500">Error: {error}</div>}
-      {
-        !isLoading && !error && (
-          <BookGrid books={books} onAddToCart={handleAddToCart} />
-        )
-      }    </div >
+      {books.length > 0 ? (
+        <BookGrid books={books} onAddToCart={handleAddToCart} />
+      ) : (
+        <div className="text-center py-10 text-gray-600">No books found in the database.</div>
+      )}
+    </div>
   );
 };
